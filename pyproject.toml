@@ -1,0 +1,31 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "hocnota-scripts"
+dynamic = ["version"]
+description = "Framework HNS : création de paquets HNS (.hnpkg, format hocnota-package/1)"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = ["jsonschema>=4.10"]
+
+[project.urls]
+Homepage = "https://github.com/hocnota/Framework-HNS"
+Documentation = "https://github.com/hocnota/Framework-HNS/blob/main/docs/guide-projet.md"
+
+[project.optional-dependencies]
+dev = ["pytest>=8"]
+
+[project.scripts]
+hocnota-scripts = "hocnota_scripts.cli:main"
+
+[tool.setuptools.dynamic]
+# Une seule source de vérité : hocnota_scripts/__init__.py (__version__).
+version = {attr = "hocnota_scripts.__version__"}
+
+[tool.setuptools.packages.find]
+include = ["hocnota_scripts*"]
+
+[tool.setuptools.package-data]
+hocnota_scripts = ["schema/*.json", "templates/**/*"]

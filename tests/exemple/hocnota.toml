@@ -1,0 +1,19 @@
+[package]
+name = "conformance-demo"
+version = "1.0.0"
+description = "Paquet de conformance : grille CSV → base SQLite → 2 outils."
+source = "src"
+modules = ["demo.etl", "demo.outils", "demo.controles"]
+instructions = "instructions.md"
+
+[[inputs]]
+name = "grille"
+accept = [".csv"]
+filename_pattern = "grille"
+
+[[artifacts]]
+name = "prix"
+kind = "sqlite"
+filename = "prix.db"
+schema_version = 1
+seed = "seed/prix.db"

@@ -1,0 +1,40 @@
+name: tests
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python: ["3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - run: pip install -e ".[dev]"
+      # Les tests qui comparent le framework aux sources de HocNota (HOCNOTA_REPO)
+      # sont ignorés ici.
+      - run: python -m pytest -q
+
+  paquet:
+    # Ce qu'un projet client installe réellement : la wheel, gabarit compris.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip wheel --no-deps -w dist .
+      - run: |
+          python -m venv /tmp/venv
+          /tmp/venv/bin/pip install dist/*.whl
+          cd /tmp
+          /tmp/venv/bin/hocnota-scripts --version
+          /tmp/venv/bin/hocnota-scripts init projet-controle
+          /tmp/venv/bin/hocnota-scripts validate --project projet-controle

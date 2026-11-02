@@ -1,0 +1,115 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://hocnota.com/schemas/hocnota-package-1.json",
+  "title": "Manifeste d'un paquet de scripts HocNota — format 1",
+  "description": "Copie canonique. Le SDK hocnota-scripts en garde une copie identique : un test de chaque côté vérifie qu'elles ne divergent pas. Les règles qui ne s'expriment pas en JSON Schema (références croisées, sous-ensemble portable des input_schema, noms réservés) sont dans app/script_packages/manifest.py.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["format", "runtime", "name", "version", "description"],
+  "properties": {
+    "format": {"const": "hocnota-package/1"},
+    "runtime": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["python"],
+      "properties": {"python": {"const": "3.12"}}
+    },
+    "name": {"type": "string", "pattern": "^[a-z0-9]([a-z0-9-]{0,62}[a-z0-9])?$"},
+    "version": {
+      "type": "string",
+      "maxLength": 40,
+      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+([+-][0-9A-Za-z.-]+)?$"
+    },
+    "description": {"type": "string", "minLength": 1, "maxLength": 1000},
+    "instructions": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,99}\\.md$"},
+    "inputs": {"type": "array", "maxItems": 10, "items": {"$ref": "#/$defs/input"}},
+    "artifacts": {"type": "array", "maxItems": 10, "items": {"$ref": "#/$defs/artifact"}},
+    "steps": {"type": "array", "maxItems": 10, "items": {"$ref": "#/$defs/step"}},
+    "tools": {"type": "array", "maxItems": 32, "items": {"$ref": "#/$defs/tool"}},
+    "checks": {"type": "array", "maxItems": 10, "items": {"$ref": "#/$defs/check"}}
+  },
+  "$defs": {
+    "ident": {"type": "string", "pattern": "^[a-z][a-z0-9_]{0,47}$"},
+    "entry": {
+      "type": "string",
+      "maxLength": 200,
+      "pattern": "^[A-Za-z_][A-Za-z0-9_]*(\\.[A-Za-z_][A-Za-z0-9_]*)*:[A-Za-z_][A-Za-z0-9_]*$"
+    },
+    "input": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "accept"],
+      "properties": {
+        "name": {"$ref": "#/$defs/ident"},
+        "description": {"type": "string", "maxLength": 500},
+        "accept": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 10,
+          "items": {"type": "string", "pattern": "^\\.[a-z0-9]{1,10}$"}
+        },
+        "filename_pattern": {"type": "string", "minLength": 1, "maxLength": 200},
+        "required": {"type": "boolean"}
+      }
+    },
+    "artifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "kind", "filename"],
+      "properties": {
+        "name": {"$ref": "#/$defs/ident"},
+        "description": {"type": "string", "maxLength": 500},
+        "kind": {"enum": ["sqlite", "file"]},
+        "filename": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$"},
+        "schema_version": {"type": "integer", "minimum": 1},
+        "seed": {"type": "string", "pattern": "^seed/[A-Za-z0-9][A-Za-z0-9._-]{0,99}$"}
+      }
+    },
+    "step": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "entry", "outputs"],
+      "properties": {
+        "name": {"$ref": "#/$defs/ident"},
+        "description": {"type": "string", "maxLength": 500},
+        "entry": {"$ref": "#/$defs/entry"},
+        "inputs": {"type": "array", "maxItems": 10, "items": {"$ref": "#/$defs/ident"}},
+        "outputs": {"type": "array", "minItems": 1, "maxItems": 10, "items": {"$ref": "#/$defs/ident"}},
+        "timeout_s": {"type": "integer", "minimum": 1, "maximum": 120}
+      }
+    },
+    "check": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "entry", "accept"],
+      "properties": {
+        "name": {"$ref": "#/$defs/ident"},
+        "description": {"type": "string", "maxLength": 500},
+        "entry": {"$ref": "#/$defs/entry"},
+        "accept": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 10,
+          "items": {"type": "string", "pattern": "^\\.[a-z0-9]{1,10}$"}
+        },
+        "filename_pattern": {"type": "string", "minLength": 1, "maxLength": 200},
+        "artifacts": {"type": "array", "maxItems": 10, "items": {"$ref": "#/$defs/ident"}},
+        "timeout_s": {"type": "integer", "minimum": 1, "maximum": 60}
+      }
+    },
+    "tool": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "description", "entry", "input_schema"],
+      "properties": {
+        "name": {"$ref": "#/$defs/ident"},
+        "description": {"type": "string", "minLength": 1, "maxLength": 2000},
+        "entry": {"$ref": "#/$defs/entry"},
+        "input_schema": {"type": "object"},
+        "artifacts": {"type": "array", "maxItems": 10, "items": {"$ref": "#/$defs/ident"}},
+        "timeout_s": {"type": "integer", "minimum": 1, "maximum": 60},
+        "max_output_chars": {"type": "integer", "minimum": 100, "maximum": 20000}
+      }
+    }
+  }
+}
