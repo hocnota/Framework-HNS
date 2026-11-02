@@ -1,6 +1,3 @@
 {"id": "seed-poire", "tool": "prix_produit", "args": {"produit": "poire"}, "expect": {"trouve": true, "montant": 2.0}}
 {"id": "seed-liste", "tool": "lister_produits", "args": {}, "expect": {"produits": ["poire", "pomme"]}}
 {"id": "argument-manquant", "tool": "prix_produit", "args": {}, "expect_error": true}
-{"id": "doc-accepte", "document": "grille_v2.csv", "verdict": "accepted", "expect": {"lignes": 3, "produits_nouveaux": 1}}
-{"id": "doc-refuse", "document": "tests/docs/sans_produit.csv", "verdict": "rejected", "message_contains": "colonne « produit »"}
-{"id": "doc-hors-perimetre", "document": "tests/docs/contrat.pdf", "verdict": "skipped"}

@@ -24,7 +24,7 @@ bac à sable de HocNota (Python 3.12, sans réseau, lecture seule).
 
 ```bash
 python3.12 -m venv .venv && source .venv/bin/activate
-pip install "hocnota-scripts @ git+https://github.com/hocnota/Framework-HNS@v0.2.0"
+pip install "hocnota-scripts @ git+https://github.com/hocnota/Framework-HNS@v0.3.0"
 hocnota-scripts init mon-paquet && cd mon-paquet
 pip install -r requirements-dev.txt
 ```

@@ -24,10 +24,6 @@ SCHEMA_PATH = Path(__file__).with_name("schema") / "hocnota-package-1.json"
 # sandbox run, whose wall clock the runner caps at 120 s.
 MAX_TOTAL_STEP_TIMEOUT_S = 120
 DEFAULT_STEP_TIMEOUT_S = 60
-# Document checks of a package run in sequence inside ONE sandbox run, on the
-# tools lane (a job waits for them): same reasoning as the steps, tighter cap.
-MAX_TOTAL_CHECK_TIMEOUT_S = 60
-DEFAULT_CHECK_TIMEOUT_S = 30
 DEFAULT_TOOL_TIMEOUT_S = 15
 DEFAULT_MAX_OUTPUT_CHARS = 20_000
 MAX_INSTRUCTIONS_CHARS = 8_000
@@ -156,9 +152,8 @@ def validate_manifest(data) -> dict:
     m.setdefault("artifacts", [])
     m.setdefault("steps", [])
     m.setdefault("tools", [])
-    m.setdefault("checks", [])
 
-    for section in ("inputs", "artifacts", "steps", "tools", "checks"):
+    for section in ("inputs", "artifacts", "steps", "tools"):
         for name in _dupes(m[section]):
             errors.append(f"{section} : nom en double « {name} »")
 
@@ -198,25 +193,6 @@ def validate_manifest(data) -> dict:
             errors.append(
                 f"artifacts/{art['name']} : ni produit par une étape ni fourni en seed — l'outil n'aurait jamais de données"
             )
-
-    total_check_timeout = 0
-    for i, check in enumerate(m["checks"]):
-        check.setdefault("artifacts", [])
-        check.setdefault("timeout_s", DEFAULT_CHECK_TIMEOUT_S)
-        total_check_timeout += check["timeout_s"]
-        for ref in check["artifacts"]:
-            if ref not in artifacts:
-                errors.append(f"checks/{i}/artifacts : artefact inconnu « {ref} »")
-        pattern = check.get("filename_pattern")
-        if pattern is not None:
-            try:
-                re.compile(pattern)
-            except re.error:
-                errors.append(f"checks/{check['name']} : filename_pattern n'est pas une expression régulière valide")
-    if total_check_timeout > MAX_TOTAL_CHECK_TIMEOUT_S:
-        errors.append(
-            f"checks : la somme des timeout_s ({total_check_timeout} s) dépasse {MAX_TOTAL_CHECK_TIMEOUT_S} s"
-        )
 
     for i, tool in enumerate(m["tools"]):
         name = tool["name"]

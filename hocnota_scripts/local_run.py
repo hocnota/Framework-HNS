@@ -1,4 +1,4 @@
-"""Exécution locale d'une étape, d'un outil ou d'un contrôle de document, avec le lanceur de HocNota.
+"""Exécution locale d'une étape ou d'un outil avec le lanceur de HocNota.
 
 Le répertoire de travail est organisé exactement comme le fait HocNota pour le
 bac à sable (``launcher.py``, ``package.hnpkg`` sans seeds, ``in/``, ``art/``) :
@@ -8,7 +8,6 @@ réseau, système de fichiers en lecture seule et mêmes plafonds.
 """
 
 import json
-import re
 import shutil
 import subprocess
 import sys
@@ -110,43 +109,3 @@ def call_tool(project: Project, name: str, args: dict, artifacts: dict[str, Path
         request = _prepare(project, workdir, {}, arts)
         request["args"] = args
         return _launch(workdir, ["tool", name], request, tool["timeout_s"] + 10, sandbox)
-
-
-def matching_checks(project: Project, filename: str) -> list[dict]:
-    """Les contrôles que HocNota exécuterait pour ce fichier : même règle
-    (extension acceptée, motif de nom facultatif), même ordre."""
-    ext = Path(filename).suffix.lower()
-    out = []
-    for check in project.manifest["checks"]:
-        if ext not in check["accept"]:
-            continue
-        pattern = check.get("filename_pattern")
-        if pattern and not re.search(pattern, filename, re.IGNORECASE):
-            continue
-        out.append(check)
-    return out
-
-
-def run_check(project: Project, document: Path, artifacts: dict[str, Path] | None = None,
-              *, sandbox: bool = False) -> tuple[dict, str]:
-    """Contrôle ``document`` comme le ferait un nœud HNS placé sur le flux du document.
-
-    Renvoie l'enveloppe du lanceur : ``{"ok": True, "rejected": bool, "message": …,
-    "meta": {…}}``, ou ``{"ok": False, "error": …}`` (contrôle impossible).
-    ``{"ok": True, "skipped": True}`` quand aucun contrôle n'accepte ce fichier.
-    """
-    selected = matching_checks(project, Path(document).name)
-    if not selected:
-        return {"ok": True, "skipped": True, "rejected": False, "message": None, "meta": {}, "checks": []}, ""
-    wanted = {a for c in selected for a in c["artifacts"]}
-    arts = {k: v for k, v in default_artifacts(project, artifacts or {}).items() if k in wanted}
-    missing = sorted(wanted - set(arts))
-    if missing:
-        return {"ok": False, "error": f"aucune donnée « {missing[0]} » disponible pour ce contrôle "
-                                      "(lancez run-step, ou passez --artifact)"}, ""
-    with tempfile.TemporaryDirectory(prefix="hnrun_") as tmp:
-        workdir = Path(tmp)
-        request = _prepare(project, workdir, {"document": Path(document)}, arts)
-        request["checks"] = [c["name"] for c in selected]
-        timeout = min(sum(c["timeout_s"] for c in selected), 60) + 10
-        return _launch(workdir, ["check"], request, timeout, sandbox)

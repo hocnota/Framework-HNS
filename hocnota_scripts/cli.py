@@ -4,12 +4,11 @@
     hocnota-scripts validate                             # manifeste + règles du format
     hocnota-scripts run-step --input classeur=fichier.xlsx   # → build/artifacts/
     hocnota-scripts call lire_lignes '{"limite": 3}'     # appel d'outil (JSON)
-    hocnota-scripts check fichier.xlsx                   # contrôle d'un document
     hocnota-scripts test                                 # rejoue tests/golden.jsonl
     hocnota-scripts build                                # → dist/<nom>-<version>.hnpkg
     hocnota-scripts inspect dist/x.hnpkg                 # résumé d'une archive
 
-``--sandbox`` (run-step, call, check, test) exécute dans ``python:3.12-slim`` sans
+``--sandbox`` (run-step, call, test) exécute dans ``python:3.12-slim`` sans
 réseau, comme le bac à sable de HocNota.
 """
 
@@ -68,7 +67,7 @@ def cmd_validate(args) -> int:
     project = load_project(args.project)
     m = project.manifest
     print(f"{m['name']} {m['version']} — format {m['format']} : valide")
-    for kind in ("inputs", "artifacts", "steps", "tools", "checks"):
+    for kind in ("inputs", "artifacts", "steps", "tools"):
         names = ", ".join(i["name"] for i in m[kind]) or "—"
         print(f"  {kind:<10} {names}")
     return 0
@@ -104,30 +103,6 @@ def cmd_call(args) -> int:
             print(f"⚠ sortie de {size} caractères : HocNota la tronquera à {tool['max_output_chars']}",
                   file=sys.stderr)
     return 0 if result.get("ok") else 1
-
-
-def cmd_check(args) -> int:
-    from hocnota_scripts.local_run import matching_checks, run_check
-    project = load_project(args.project)
-    document = Path(args.document)
-    if not document.is_file():
-        raise ProjectError(f"fichier introuvable : {document}")
-    names = [c["name"] for c in matching_checks(project, document.name)]
-    result, stderr = run_check(project, document.resolve(), _pairs(args.artifact, "--artifact"),
-                               sandbox=args.sandbox)
-    if stderr.strip():
-        print(stderr.rstrip(), file=sys.stderr)
-    if result.get("skipped"):
-        print(f"Aucun contrôle ne concerne « {document.name} » : HocNota le laisserait passer.")
-        return 0
-    print(json.dumps(result, ensure_ascii=False, indent=2))
-    if not result.get("ok"):
-        print(f"⚠ contrôle impossible : HocNota refuserait le document (« {', '.join(names)} »)", file=sys.stderr)
-        return 1
-    if result.get("rejected"):
-        print("✘ document refusé — le message ci-dessus est celui que verrait l'utilisateur", file=sys.stderr)
-        return 3
-    return 0
 
 
 def cmd_test(args) -> int:
@@ -198,12 +173,6 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--artifact", action="append", metavar="NOM=FICHIER")
     p.add_argument("--sandbox", action="store_true")
     p.set_defaults(func=cmd_call)
-
-    p = with_project(sub.add_parser("check", help="contrôle un document comme le nœud HNS"))
-    p.add_argument("document")
-    p.add_argument("--artifact", action="append", metavar="NOM=FICHIER")
-    p.add_argument("--sandbox", action="store_true")
-    p.set_defaults(func=cmd_check)
 
     p = with_project(sub.add_parser("test", help="rejoue le jeu de référence"))
     p.add_argument("file", nargs="?")

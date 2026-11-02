@@ -13,7 +13,7 @@ import pytest
 from hocnota_scripts import cli
 from hocnota_scripts.build import build, build_archive
 from hocnota_scripts.golden import matches, run_golden
-from hocnota_scripts.local_run import call_tool, run_check, run_steps
+from hocnota_scripts.local_run import call_tool, run_steps
 from hocnota_scripts.project import ProjectError, load_project
 from hocnota_scripts.schema_infer import SchemaError, infer_input_schema, parse_docstring_args
 
@@ -130,6 +130,23 @@ def test_run_steps_then_call_tool(tmp_path):
     assert r == {"ok": True, "result": {"trouve": True, "produit": "kiwi", "montant": 0.8}}
 
 
+def test_failing_step_reports_the_script_message(tmp_path):
+    """L'exception d'une étape est son canal d'erreur : HocNota arrête le job avec ce message."""
+    import shutil
+    project_dir = tmp_path / "p"
+    shutil.copytree(EXEMPLE, project_dir)
+    (project_dir / "src" / "demo" / "etl.py").write_text(
+        "from hocnota_scripts import Context, step\n\n\n"
+        "@step(inputs=['grille'], outputs=['prix'])\n"
+        "def importer(ctx: Context, grille):\n"
+        "    raise ValueError('Aucun produit dans la grille')\n"
+    )
+    for name in [m for m in sys.modules if m == "demo" or m.startswith("demo.")]:
+        del sys.modules[name]  # le module est déjà importé depuis le projet d'origine
+    result, _ = run_steps(load_project(project_dir), {"grille": EXEMPLE / "grille_v2.csv"}, tmp_path / "out")
+    assert not result["ok"] and result["error"] == "ValueError: Aucun produit dans la grille"
+
+
 def test_call_tool_validates_arguments_like_hocnota():
     project = load_project(EXEMPLE)
     r, _ = call_tool(project, "prix_produit", {"produit": 3})
@@ -139,58 +156,7 @@ def test_call_tool_validates_arguments_like_hocnota():
 def test_golden_on_seed():
     project = load_project(EXEMPLE)
     report = run_golden(project, EXEMPLE / "tests" / "golden.jsonl")
-    assert report == [
-        ("seed-poire", []), ("seed-liste", []), ("argument-manquant", []),
-        ("doc-accepte", []), ("doc-refuse", []), ("doc-hors-perimetre", []),
-    ]
-
-
-# ── Contrôles de document ────────────────────────────────────────────────────
-
-def test_checks_are_discovered_with_their_options():
-    [check] = load_project(EXEMPLE).manifest["checks"]
-    assert check["name"] == "verifier_grille" and check["entry"] == "demo.controles:verifier_grille"
-    assert check["accept"] == [".csv"] and check["artifacts"] == ["prix"] and check["timeout_s"] == 20
-
-
-def test_check_accepts_rejects_and_skips():
-    project = load_project(EXEMPLE)
-    ok, _ = run_check(project, EXEMPLE / "grille_v2.csv")
-    assert ok == {"ok": True, "rejected": False, "message": None,
-                  "meta": {"lignes": 3, "produits_nouveaux": 1},
-                  "checks": [{"name": "verifier_grille", "status": "ok"}]}
-    refused, _ = run_check(project, EXEMPLE / "tests" / "docs" / "sans_produit.csv")
-    assert refused["ok"] and refused["rejected"] and "colonne « produit »" in refused["message"]
-    skipped, _ = run_check(project, EXEMPLE / "tests" / "docs" / "contrat.pdf")
-    assert skipped["skipped"] and not skipped["rejected"]
-
-
-def test_check_without_data_is_a_failure(tmp_path):
-    """Comme HocNota : un contrôle qui lit des données absentes est « impossible »."""
-    project = load_project(EXEMPLE)
-    project.manifest["artifacts"][0].pop("seed")
-    result, _ = run_check(project, EXEMPLE / "grille_v2.csv", {})
-    assert not result["ok"] and "aucune donnée « prix »" in result["error"]
-
-
-def test_check_crash_is_not_a_rejection(tmp_path):
-    project = tmp_path / "p"
-    cli.main(["init", str(project)])
-    (project / "src" / "p" / "controles.py").write_text(
-        "from hocnota_scripts import check\n@check(accept=['.csv'])\ndef boom(ctx, document):\n    1 / 0\n"
-    )
-    toml = project / "hocnota.toml"
-    toml.write_text(toml.read_text().replace('modules = [', 'modules = ["p.controles", ', 1))
-    doc = tmp_path / "a.csv"
-    doc.write_text("x")
-    result, stderr = run_check(load_project(project), doc)
-    assert not result["ok"] and "ZeroDivisionError" in result["error"] and "Traceback" in stderr
-
-
-def test_reject_is_also_exposed_to_package_code():
-    import hocnota_scripts
-    assert issubclass(hocnota_scripts.Reject, Exception)
-    assert hocnota_scripts.check.__doc__
+    assert report == [("seed-poire", []), ("seed-liste", []), ("argument-manquant", [])]
 
 
 def test_matches_is_inclusive():
@@ -209,7 +175,7 @@ def test_build_archive(tmp_path):
         names = set(zf.namelist())
         manifest = json.loads(zf.read("manifest.json"))
     assert {"manifest.json", "instructions.md", "pkg/demo/etl.py", "pkg/demo/outils.py",
-            "pkg/demo/controles.py", "seed/prix.db"} <= names
+            "seed/prix.db"} <= names
     assert not any("__pycache__" in n for n in names)
     assert manifest == project.manifest
 

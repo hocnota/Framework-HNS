@@ -21,8 +21,8 @@
     schema_version = 1
     seed = "seed/produits.db"                       # chemin dans le projet, optionnel
 
-Les étapes, les outils et les contrôles de document ne se déclarent pas ici : ils
-sont découverts par leurs décorateurs dans ``modules``.
+Les étapes et les outils ne se déclarent pas ici : ils sont découverts par leurs
+décorateurs dans ``modules``.
 """
 
 import importlib
@@ -32,7 +32,7 @@ import tomllib
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from hocnota_scripts.api import CHECK_ATTR, STEP_ATTR, TOOL_ATTR
+from hocnota_scripts.api import STEP_ATTR, TOOL_ATTR
 from hocnota_scripts.rules import FORMAT, ManifestError, validate_manifest
 from hocnota_scripts.schema_infer import infer_input_schema, summary
 
@@ -72,11 +72,11 @@ class Project:
         return f"{self.package['name']}-{self.package['version']}.hnpkg"
 
 
-def _discover(project: Project) -> tuple[list[dict], list[dict], list[dict]]:
+def _discover(project: Project) -> tuple[list[dict], list[dict]]:
     src = str(project.source_dir.resolve())
     if src not in sys.path:
         sys.path.insert(0, src)
-    steps, tools, checks = [], [], []
+    steps, tools = [], []
     for module_name in project.package.get("modules", []):
         try:
             module = importlib.import_module(module_name)
@@ -112,27 +112,12 @@ def _discover(project: Project) -> tuple[list[dict], list[dict], list[dict]]:
                     if opts[key]:
                         tool[key] = opts[key]
                 tools.append((func.__code__.co_firstlineno, module_name, tool))
-            if hasattr(func, CHECK_ATTR):
-                opts = getattr(func, CHECK_ATTR)
-                check = {
-                    "name": opts["name"] or func.__name__,
-                    "entry": entry,
-                    "accept": opts["accept"] or [],
-                    "artifacts": opts["artifacts"] or [],
-                }
-                if opts["description"] or summary(func.__doc__):
-                    check["description"] = opts["description"] or summary(func.__doc__)
-                if opts["filename_pattern"]:
-                    check["filename_pattern"] = opts["filename_pattern"]
-                if opts["timeout_s"]:
-                    check["timeout_s"] = opts["timeout_s"]
-                checks.append((func.__code__.co_firstlineno, module_name, check))
     # Ordre stable : ordre des modules déclarés, puis ordre dans le fichier —
-    # les étapes et les contrôles s'exécutent dans cet ordre.
+    # les étapes s'exécutent dans cet ordre.
     order = {m: i for i, m in enumerate(project.package.get("modules", []))}
-    for found in (steps, tools, checks):
+    for found in (steps, tools):
         found.sort(key=lambda t: (order[t[1]], t[0]))
-    return [s for _, _, s in steps], [t for _, _, t in tools], [c for _, _, c in checks]
+    return [s for _, _, s in steps], [t for _, _, t in tools]
 
 
 def load_project(root: Path | str = ".") -> Project:
@@ -158,7 +143,7 @@ def load_project(root: Path | str = ".") -> Project:
             project.seeds[art["seed"]] = local
         artifacts.append(art)
 
-    steps, tools, checks = _discover(project)
+    steps, tools = _discover(project)
     manifest = {
         "format": FORMAT,
         "runtime": {"python": "3.12"},
@@ -169,7 +154,6 @@ def load_project(root: Path | str = ".") -> Project:
         "artifacts": artifacts,
         "steps": steps,
         "tools": tools,
-        "checks": checks,
     }
     if project.instructions_path:
         if not project.instructions_path.is_file():

@@ -13,9 +13,6 @@ https://github.com/hocnota/Framework-HNS/blob/v{{sdk_version}}/docs/guide-projet
   (`ctx.output_path(nom)`), renvoie un dict de métadonnées montrées à l'agent.
 - `src/{{module}}/outils.py` : outils `@tool` offerts à l'agent HocNota, en lecture
   seule sur les artefacts (`ctx.sqlite(nom)`).
-- (facultatif) un module de contrôles `@check` : lit le document d'un job, le laisse
-  passer (renvoie des constats) ou le refuse (`raise Reject("message pour l'utilisateur")`).
-  Voir §7.1 du guide.
 - `hocnota.toml` : nom, version, entrées, artefacts, dépendances.
 - `instructions.md` : consignes ajoutées au prompt de l'agent.
 - `tests/golden.jsonl` : jeu de référence (appel d'outil → résultat attendu).
@@ -32,12 +29,11 @@ https://github.com/hocnota/Framework-HNS/blob/v{{sdk_version}}/docs/guide-projet
 5. Noms réservés : outils `skill_*`, `list_all`, `get_columns_by_value`,
    `get_columns_by_search`, `check_spell` ; paramètres `args`, `callbacks`,
    `run_manager`, `config`, `ctx`.
-6. N'importer de `hocnota_scripts` que `step`, `tool`, `check`, `Reject`, `Context`,
-   `InputFile`.
+6. N'importer de `hocnota_scripts` que `step`, `tool`, `Context`, `InputFile`.
 7. Erreur métier d'un outil ou d'une étape → `raise ValueError("message clair")`.
-   `Reject` est réservé aux contrôles de document et à un verdict métier ; un défaut
-   du contrôle lui-même doit planter, pas refuser. Contrôles de cohérence
-   obligatoires dans l'import : un fichier mal formé doit échouer.
+   Une étape qui échoue arrête le job de l'utilisateur avec ce message (écrivez-le
+   pour lui). Contrôles de cohérence obligatoires dans l'import : un fichier mal
+   formé doit échouer.
 8. Sorties d'outil compactes (< 4 000 caractères visés, 20 000 max).
 9. Avant toute livraison : incrémenter `version` dans `hocnota.toml` ; incrémenter
    `schema_version` de l'artefact si la structure des données change.
@@ -51,7 +47,6 @@ pip install -r requirements-dev.txt
 hocnota-scripts validate                               # manifeste + règles du format
 hocnota-scripts run-step --input <entrée>=<fichier>    # import → build/artifacts/
 hocnota-scripts call <outil> '<json>'                  # appel d'outil
-hocnota-scripts check <fichier>                        # contrôle d'un document (@check)
 hocnota-scripts test                                   # tests/golden.jsonl (après run-step)
 hocnota-scripts test --sandbox                         # idem, sans réseau, Python 3.12 (Docker)
 hocnota-scripts build                                  # → dist/{{name}}-<version>.hnpkg

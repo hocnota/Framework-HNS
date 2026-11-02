@@ -25,8 +25,8 @@ Version du format couverte : **`hocnota-package/1`** (lanceur protocole 1).
 5. **Noms réservés** : outils `skill_*`, `list_all`, `get_columns_by_value`,
    `get_columns_by_search`, `check_spell` ; paramètres `args`, `callbacks`,
    `run_manager`, `config`, `ctx`.
-6. **Du module `hocnota_scripts`, n'importer que** `step`, `tool`, `check`, `Reject`,
-   `Context`, `InputFile`. Dans HocNota, ce module est remplacé par celui du lanceur.
+6. **Du module `hocnota_scripts`, n'importer que** `step`, `tool`, `Context`,
+   `InputFile`. Dans HocNota, ce module est remplacé par celui du lanceur.
 7. **Ne jamais réutiliser un numéro de version** déjà importé dans HocNota :
    incrémenter `version` dans `hocnota.toml` avant chaque `build` livré.
 8. **Changer la structure d'un artefact = incrémenter son `schema_version`.**
@@ -96,7 +96,7 @@ Comment HocNota exécute un paquet :
 
 ```bash
 python3.12 -m venv .venv && source .venv/bin/activate
-pip install "hocnota-scripts @ git+https://github.com/hocnota/Framework-HNS@v0.2.0"
+pip install "hocnota-scripts @ git+https://github.com/hocnota/Framework-HNS@v0.3.0"
 hocnota-scripts --version
 hocnota-scripts init catalogue-produits     # nom : minuscules, chiffres, tirets
 cd catalogue-produits
@@ -182,10 +182,9 @@ Règles vérifiées par `validate` (et à nouveau par HocNota à l'import) :
 | Règle | Limite |
 |---|---|
 | Entrées / artefacts / étapes | 10 max chacun |
-| Outils | 32 max ; contrôles de document 10 max |
+| Outils | 32 max |
 | Somme des `timeout_s` des étapes | ≤ 120 s (défaut 60 s par étape) |
 | `timeout_s` d'un outil | ≤ 60 s (défaut 15 s) |
-| Somme des `timeout_s` des contrôles | ≤ 60 s (défaut 30 s par contrôle) |
 | `max_output_chars` d'un outil | 100 à 20 000 (défaut 20 000) |
 | Description du paquet | ≤ 1 000 caractères ; d'un outil ≤ 2 000 |
 | `instructions.md` | ≤ 8 000 caractères |
@@ -307,54 +306,30 @@ Conception :
 - Prévoir un outil de **référentiel** (`lister_referentiels` : fournisseurs, catégories,
   périodes couvertes) : l'agent l'appelle quand une question est ambiguë.
 
-### 7.1 Contrôler le document d'un job (`@check`)
+### 7.1 Faire échouer une étape avec un message clair
 
-Un **contrôle** lit le fichier qu'un utilisateur dépose dans un pipeline documentaire
-(le document à annoter) et décide s'il peut entrer dans le pipeline. Cas typiques :
-« ce classeur est-il bien un catalogue (onglets, colonnes) ? », « sa période
-est-elle couverte par nos données ? ». À écrire dans un module listé dans `modules`.
+Une étape qui lève une exception **arrête le job** de l'utilisateur (le tour de chat,
+dont l'import est la première étape) : l'exception est le canal d'erreur du paquet, et
+son message est ce que l'utilisateur lira.
 
 ```python
-from hocnota_scripts import Context, Reject, check
-
-
-@check(accept=[".xlsx"], artifacts=["produits"], timeout_s=30)
-def verifier_catalogue(ctx: Context, document):
-    """Vérifie que le classeur reçu est un catalogue exploitable."""
-    wb = openpyxl.load_workbook(document, read_only=True)
+@step(inputs=["catalogue"], outputs=["produits"])
+def importer(ctx: Context, catalogue):
+    wb = load_workbook(catalogue, read_only=True, data_only=True)
     if "Produits" not in wb.sheetnames:
-        raise Reject("Ce classeur n'est pas un catalogue : l'onglet « Produits » est absent.")
-    connus = {r[0] for r in ctx.sqlite("produits").execute("SELECT reference FROM produits")}
+        raise ValueError("Ce classeur n'est pas un catalogue : l'onglet « Produits » est absent.")
     ...
-    return {"onglets": len(wb.sheetnames), "periode": "2026-2027"}   # constats pour les agents
 ```
 
-- **Signature** `(ctx, document)` : `document` est le chemin du fichier d'origine (le
-  second paramètre est passé en position, le nom est libre). Retour : `dict` de constats
-  (valeurs simples, montrées aux agents du pipeline) ou `None`.
-- **`Reject("message")`** refuse le document. Le message est ce que l'utilisateur
-  lira (ou ce qu'un nœud « Message d'erreur » réécrira) : une phrase claire, sans
-  jargon ni trace, qui dit **ce qui ne va pas et comment corriger**. Une ligne,
-  500 caractères au plus (le reste est coupé).
-- **Toute autre exception** (ou un délai dépassé) n'est pas un refus : c'est un
-  contrôle **impossible**. Le document n'ayant pas été vérifié, HocNota le traite
-  comme un refus, avec un message neutre. Ne levez donc `Reject` que pour un verdict
-  métier, et laissez planter ce qui est un défaut du contrôle — jamais l'inverse.
-- **`accept`** (extensions, obligatoire) et `filename_pattern` (regex, facultative)
-  choisissent les fichiers concernés ; un fichier d'un autre type **passe sans
-  contrôle** (le rôle de refuser les types inattendus revient à l'aiguillage du
-  pipeline, pas au paquet).
-- **`artifacts`** : données lisibles par le contrôle (`ctx.sqlite(nom)`, lecture seule)
-  — la version en vigueur du nœud, sinon le seed. Si elles manquent, le contrôle est
-  impossible.
-- Plusieurs contrôles s'exécutent **dans l'ordre du fichier**, jusqu'au premier refus.
-  Un seul lancement du bac à sable pour tous ; durée totale ≤ 60 s.
-- Un contrôle **ne modifie rien** : pas d'import, pas d'écriture. Mettre à jour les
-  données reste le rôle d'une étape `@step`, déclenchée depuis le chat.
-- Documents jusqu'à 16 Mio bruts sur la voie rapide, 64 Mio au plus au-delà.
-
-Les outils (`@tool`) et les contrôles (`@check`) sont indépendants : un paquet peut
-n'avoir que des contrôles (pas d'artefact, pas d'étape), que des outils, ou les deux.
+- Écrivez le message **pour l'utilisateur** : une phrase claire, sans jargon ni trace,
+  qui dit **ce qui ne va pas et comment corriger**. HocNota y ajoute le type de
+  l'exception (« ValueError: … ») ; la trace complète reste dans le journal du script.
+- Les données précédentes restent en vigueur : un import raté ne casse rien.
+- Dans le pipeline, la sortie **« erreur »** du nœud HNS permet de remplacer ce message
+  par celui d'un nœud « Message d'erreur », puis d'aboutir à la « Sortie erreur ».
+  Sans liaison, le job échoue avec le message du script.
+- Un **outil** qui lève une exception ne fait pas échouer le job : l'erreur revient
+  à l'agent, qui l'explique à l'utilisateur.
 
 ---
 
@@ -398,7 +373,6 @@ hocnota-scripts validate                                      # manifeste + règ
 hocnota-scripts run-step --input catalogue=fichier.xlsx       # import → build/artifacts/ + meta.json
 hocnota-scripts call lister_referentiels                      # outil sur build/artifacts/ (sinon seed)
 hocnota-scripts call chiffrer_commande '{"date_livraison": "2026-12-05", "reference": "BLN-M8", "fournisseur": "atlas"}'
-hocnota-scripts check catalogue.xlsx                          # contrôle d'un document (exit 0 accepté, 3 refusé, 1 impossible)
 hocnota-scripts test                                          # jeu de référence
 hocnota-scripts test --sandbox                                # idem dans python:3.12-slim, sans réseau
 ```
@@ -423,20 +397,6 @@ Une ligne par cas ; les lignes vides et celles qui commencent par `#` sont ignor
   date, quantité min/max), les cas d'erreur, les cas réels du §4.
 - Le jeu de référence tourne sur `build/artifacts/` s'il existe, sinon sur le seed :
   lancez `run-step` sur le fichier de référence avant `test`.
-
-Un cas peut aussi contrôler un **document** (chemin relatif au projet) :
-
-```json
-{"id": "d01-valide", "document": "tests/docs/catalogue_ok.xlsx", "verdict": "accepted", "expect": {"onglets": 4}}
-{"id": "d02-sans-produits", "document": "tests/docs/sans_onglet.xlsx", "verdict": "rejected", "message_contains": "onglet « Produits »"}
-{"id": "d03-autre-type", "document": "tests/docs/contrat.pdf", "verdict": "skipped"}
-```
-
-`verdict` : `accepted` (défaut), `rejected`, `skipped` (aucun contrôle ne concerne ce
-type) ou `failed` (contrôle impossible). `expect` compare les constats renvoyés.
-Couvrir au moins : un document valide, **un refus par cause de refus**, un type de
-fichier hors périmètre, un fichier corrompu (attendu `failed` ou `rejected` selon que
-le contrôle le détecte).
 
 Des tests `pytest` classiques peuvent compléter (fonctions de calcul pures).
 
@@ -519,27 +479,21 @@ Entrée chat ──► Agent IA ──(patte « réponse »)──► Sortie cha
 auxquelles le pipeline est affecté : affecter le pipeline à ses équipes d'abord
 (liste des pipelines → **Équipes**).
 
-**Variante : refuser les mauvais documents (pipeline documentaire).** Si le paquet
-a des contrôles, posez le nœud **Script** sur le flux du document :
+**Variante : message d'erreur personnalisé.** Si l'import échoue, le job s'arrête avec
+le message du script. Pour le remplacer par le vôtre, ajoutez :
 
 | Nœud | Réglage |
 |---|---|
-| **Document à annoter** (Entrée / Sortie) | — |
-| **Script** (Analyse IA) | Paquet ; liste des contrôles visible dans le panneau. |
-| **Message d'erreur** (Flux) | Facultatif : réécrit le motif du refus pour l'utilisateur. |
-| **Sortie erreur** (Entrée / Sortie) | Nécessaire pour afficher le refus au bon endroit. |
+| **Message d'erreur** (Flux) | Le message à afficher. |
+| **Sortie erreur** (Entrée / Sortie) | — |
 
 ```
-Document à annoter ──► Script (entrée « document », à gauche en haut)
-Script (sortie « document », à droite en haut) ──► la suite du pipeline (agents…)
-Script (sortie « erreur », à droite en bas) ──► Message d'erreur ──► Sortie erreur
-Script (sortie « MCP », en haut) ──► Agent IA            (si le paquet a aussi des outils)
+Script (sortie « erreur », à droite) ──► Message d'erreur ──► Sortie erreur
 ```
 
-Sans liaison sur la sortie « erreur », un refus ou un contrôle impossible rejette le
-job avec le message du paquet (statut « Refusé », non facturé). Un job refusé est
-visible dans la liste des jobs, avec le motif ; le détail du nœud montre le verdict,
-les constats et le journal du script.
+Le job passe alors au statut « Refusé » (non facturé) avec votre message ; sans cette
+liaison, il est en « Échec » avec le message du script. Le détail des nœuds montre
+l'étape en échec et le journal du script.
 
 ### 12.4 Charger les données
 
@@ -636,8 +590,7 @@ main.
 |---|---|
 | Format d'archive | `hocnota-package/1` : `manifest.json`, `pkg/`, `vendor/`, `seed/`, `instructions.md` |
 | Exécution | Python 3.12, sans réseau, système de fichiers en lecture seule, `/tmp` noexec |
-| Lanceur | protocole 1 : `launcher.py step` / `launcher.py tool <nom>` / `launcher.py check`, requête JSON sur stdin, résultat dans `output/result.json` |
-| Contrôle de document | `fn(ctx, document)` ; enveloppe `{ok, rejected, message, meta, checks}` — un refus (`Reject`) est un résultat (`ok: true`), pas une erreur ; 60 s au total |
+| Lanceur | protocole 1 : `launcher.py step` / `launcher.py tool <nom>`, requête JSON sur stdin, résultat dans `output/result.json` |
 | Artefacts en entrée d'outil | ouverts en lecture seule (`mode=ro&immutable=1`) |
 | Limites voie « imports » | 120 s, 1,5 Gio, charge utile 96 Mio, sorties 64 Mio |
 | Limites voie « outils » | 60 s par outil, 512 Mio, charge utile 24 Mio (archive sans seed + artefacts lus) |

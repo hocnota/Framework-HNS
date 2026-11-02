@@ -12,11 +12,8 @@ Workdir laid out by HocNota (app/script_packages/runner.py):
     in/<input>/<file>    step inputs (e.g. the Excel attached to the chat)
     art/<filename>       artifacts a tool reads (e.g. data.db)
 
-Invocation:  ``python3 launcher.py step``, ``python3 launcher.py tool <name>``
-             or ``python3 launcher.py check``
+Invocation:  ``python3 launcher.py step``  or  ``python3 launcher.py tool <name>``
 stdin:       ``{"args": {...}, "inputs": {name: path}, "artifacts": {name: path}}``
-             (``check`` also takes ``"checks": [names]`` and the document as
-             input ``document``)
 Result:      ``output/result.json`` — never stdout, which package code may
              print to. Step outputs land in ``output/artifacts/<filename>``.
 
@@ -49,11 +46,6 @@ _MAX_EXTRACT_BYTES = 256 * 1024 * 1024
 
 class PackageError(Exception):
     """An error the package author should read as-is (no traceback)."""
-
-
-class Reject(Exception):
-    """Raised by a document check to refuse the document. The message is what
-    the pipeline's error exit tells the user — write it for them."""
 
 
 # ── The ``hocnota_scripts`` module seen by package code ──────────────────────
@@ -113,9 +105,7 @@ def _install_sdk_stub() -> None:
     mod = types.ModuleType("hocnota_scripts")
     mod.step = _passthrough_decorator
     mod.tool = _passthrough_decorator
-    mod.check = _passthrough_decorator
     mod.Context = Context
-    mod.Reject = Reject
     mod.InputFile = Path
     mod.LAUNCHER_PROTOCOL = LAUNCHER_PROTOCOL
     sys.modules["hocnota_scripts"] = mod
@@ -235,44 +225,11 @@ def run_tool(manifest: dict, request: dict, tool_name: str) -> dict:
     return {"ok": True, "result": _jsonable(func(ctx, **args))}
 
 
-def run_checks(manifest: dict, request: dict) -> dict:
-    """Run the named document checks in order on the document, until one rejects.
-
-    A rejection is an outcome, not a failure: ``ok`` stays true and
-    ``rejected`` carries the message. ``meta`` merges what the checks returned.
-    """
-    specs = {c["name"]: c for c in manifest.get("checks", [])}
-    inputs = request.get("inputs") or {}
-    if not inputs.get("document"):
-        raise PackageError("document à contrôler manquant")
-    ctx = Context(inputs, request.get("artifacts") or {}, {})
-    document = ctx.input_path("document")
-    meta: dict = {}
-    done: list[dict] = []
-    for name in request.get("checks") or []:
-        spec = specs.get(name)
-        if spec is None:
-            raise PackageError(f"contrôle inconnu : {name}")
-        func = _load_entry(spec["entry"])
-        try:
-            returned = func(ctx, document)
-        except Reject as exc:
-            done.append({"name": name, "status": "rejected"})
-            return {"ok": True, "rejected": True, "message": str(exc), "meta": meta, "checks": done}
-        if returned is not None:
-            if not isinstance(returned, dict):
-                raise PackageError(f"le contrôle {name} doit renvoyer un dict ou None")
-            meta.update(_jsonable(returned))
-        done.append({"name": name, "status": "ok"})
-    return {"ok": True, "rejected": False, "message": None, "meta": meta, "checks": done}
-
-
 def main(argv: list[str]) -> int:
     OUTPUT_DIR.mkdir(exist_ok=True)
     try:
-        if (not argv or argv[0] not in ("step", "tool", "check")
-                or (argv[0] == "tool" and len(argv) < 2)):
-            raise PackageError("usage : launcher.py step | launcher.py tool <nom> | launcher.py check")
+        if not argv or argv[0] not in ("step", "tool") or (argv[0] == "tool" and len(argv) < 2):
+            raise PackageError("usage : launcher.py step | launcher.py tool <nom>")
         request = json.loads(sys.stdin.read() or "{}")
         root = Path(EXTRACT_DIR)
         _extract(Path(ARCHIVE), root)
@@ -284,8 +241,6 @@ def main(argv: list[str]) -> int:
         with contextlib.redirect_stdout(sys.stderr):
             if argv[0] == "step":
                 result = run_steps(manifest, request)
-            elif argv[0] == "check":
-                result = run_checks(manifest, request)
             else:
                 result = run_tool(manifest, request, argv[1])
         code = 0

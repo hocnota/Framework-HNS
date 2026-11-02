@@ -3,7 +3,7 @@ name = "conformance-demo"
 version = "1.0.0"
 description = "Paquet de conformance : grille CSV → base SQLite → 2 outils."
 source = "src"
-modules = ["demo.etl", "demo.outils", "demo.controles"]
+modules = ["demo.etl", "demo.outils"]
 instructions = "instructions.md"
 
 [[inputs]]

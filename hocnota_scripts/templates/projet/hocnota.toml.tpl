@@ -1,6 +1,5 @@
 # Paquet HNS — format hocnota-package/1.
-# Les étapes (@step), les outils (@tool) et les contrôles de document (@check)
-# sont découverts dans `modules`.
+# Les étapes (@step) et les outils (@tool) sont découverts dans `modules`.
 
 [package]
 name = "{{name}}"

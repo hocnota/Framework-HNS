@@ -18,17 +18,8 @@
         conn = ctx.sqlite("produits")
         ...
 
-    @check(accept=[".xlsx"], artifacts=["produits"])
-    def verifier_catalogue(ctx: Context, document):
-        if not est_conforme(document):
-            raise Reject("Le catalogue n'a pas le format attendu : onglet « Produits » absent.")
-        return {"onglets": 4}     # constats donnés aux agents reliés au nœud
-
-Un contrôle de document s'exécute quand le nœud HNS est placé sur le flux du
-document : il reçoit le fichier du job, et soit le laisse passer (en renvoyant des
-constats), soit le refuse en levant ``Reject`` — le message est celui que verra
-l'utilisateur. Tout autre échec (exception, délai) est un contrôle impossible, qui
-sort lui aussi par la sortie « erreur » du nœud.
+Une exception levée par une étape arrête le job : son message est celui que verra
+l'utilisateur (ou celui que la sortie « erreur » du nœud HNS remplace).
 
 Dans le bac à sable HocNota, ce module est remplacé par celui du lanceur :
 les décorateurs y renvoient la fonction telle quelle (le manifeste, construit
@@ -38,13 +29,12 @@ Le code d'un paquet ne doit donc rien attendre d'autre de ce module.
 
 from pathlib import Path
 
-from hocnota_scripts._launcher_v1 import Context, Reject  # mêmes classes que dans le bac à sable
+from hocnota_scripts._launcher_v1 import Context  # même classe que dans le bac à sable
 
 InputFile = Path
 
 STEP_ATTR = "__hocnota_step__"
 TOOL_ATTR = "__hocnota_tool__"
-CHECK_ATTR = "__hocnota_check__"
 
 
 def _decorator(attr: str, defaults: dict):
@@ -72,12 +62,3 @@ tool = _decorator(TOOL_ATTR, {
     "max_output_chars": None, "input_schema": None,
 })
 tool.__doc__ = "Marque un outil offert à l'agent : (ctx, **arguments) → valeur JSON."
-
-check = _decorator(CHECK_ATTR, {
-    "name": None, "description": None, "accept": None, "filename_pattern": None,
-    "artifacts": None, "timeout_s": None,
-})
-check.__doc__ = (
-    "Marque un contrôle de document : (ctx, document) → dict de constats ou None ; "
-    "lève Reject(\"message\") pour refuser le document."
-)
