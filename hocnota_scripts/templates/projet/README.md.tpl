@@ -15,8 +15,8 @@ hocnota-scripts build                                        # → dist/{{name}}
 
 Mise en production (étapes humaines, détaillées au §12 du guide) : importer l'archive
 (Manager → Outils → Paquets HNS), la faire approuver à la première livraison (Admin → Compétences),
-ajouter un nœud « HNS » au pipeline de chat, choisir les rédacteurs, charger les
-données, tester puis activer.
+ajouter un nœud « HNS » au pipeline, l'alimenter (fichier joint au chat par des
+rédacteurs, ou fichier d'un dossier externe), charger les données, tester puis activer.
 
 ## Conception
 

@@ -12,7 +12,9 @@ instructions = "instructions.md"
 # embarquées dans l'archive, le bac à sable n'a pas accès au réseau.
 dependencies = ["openpyxl>=3.1"]
 
-# Fichier fourni par l'utilisateur (joint au chat) qui déclenche l'import.
+# Fichier source qui déclenche l'import : joint au chat par un rédacteur, ou
+# choisi dans un dossier externe pour le nœud HNS (réimporté quand son contenu
+# change). Dans ce second cas, le paquet ne reçoit qu'un seul fichier.
 [[inputs]]
 name = "classeur"
 accept = [".xlsx"]

@@ -42,13 +42,14 @@
   <text x="30" y="230" font-size="15" font-weight="700" fill="#0969da">2 · Dans HocNota — un pipeline de chat avec un nœud HNS</text>
 
   <!-- Rangée A : nouveau fichier -->
-  <text x="30" y="262" font-size="13" font-weight="700" fill="#1f2328">A · Quand un rédacteur joint un nouveau fichier</text>
-  <text x="400" y="262" font-size="12" fill="#57606a">(sinon rien ne s'exécute : les outils lisent les données en vigueur)</text>
+  <text x="30" y="262" font-size="13" font-weight="700" fill="#1f2328">A · Quand un nouveau fichier arrive</text>
+  <text x="304" y="262" font-size="12" fill="#57606a">(sinon rien ne s'exécute : les outils lisent les données en vigueur)</text>
 
   <g font-size="13" fill="#1f2328" text-anchor="middle">
     <rect x="30" y="278" width="200" height="72" rx="10" fill="#ffffff" stroke="#8c959f" stroke-width="1.5"/>
-    <text x="130" y="305" font-weight="700" font-size="14">Fichier joint</text>
-    <text x="130" y="326">classeur Excel, CSV, PDF…</text>
+    <text x="130" y="300" font-weight="700" font-size="14">Nouveau fichier</text>
+    <text x="130" y="320">joint au chat, ou modifié</text>
+    <text x="130" y="338">dans un dossier externe</text>
 
     <rect x="290" y="278" width="270" height="72" rx="10" fill="#f1e8ff" stroke="#8250df" stroke-width="2"/>
     <text x="425" y="305" font-weight="700" font-size="14">Étapes d'import · @step</text>

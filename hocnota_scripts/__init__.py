@@ -8,4 +8,4 @@ from hocnota_scripts.api import Context, InputFile, step, tool
 from hocnota_scripts.rules import FORMAT
 
 __all__ = ["Context", "InputFile", "step", "tool", "FORMAT"]
-__version__ = "0.3.0"
+__version__ = "0.3.1"

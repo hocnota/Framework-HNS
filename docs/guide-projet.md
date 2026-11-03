@@ -41,7 +41,8 @@ Version du format couverte : **`hocnota-package/1`** (lanceur protocole 1).
 ## 1. Vue d'ensemble
 
 ```
- fichier source (ex. Excel)          joint au chat par un rédacteur, ou importé
+ fichier source (ex. Excel)          joint au chat par un rédacteur, relu dans un
+          │                          dossier externe à chaque lancement, ou importé
           │                          depuis le panneau du nœud HNS
           ▼
  ┌──────────────────┐   @step   ┌─────────────────┐
@@ -66,11 +67,21 @@ Version du format couverte : **`hocnota-package/1`** (lanceur protocole 1).
 | **Version de données** | Résultat d'un import pour un nœud HNS donné. Une seule est « en vigueur ». |
 | **Nœud HNS** | Le paquet placé dans un pipeline HocNota. |
 | **Rédacteur** | Utilisateur ou équipe autorisé à remplacer les données en joignant un fichier au chat. |
+| **Dossier externe** | Dossier SharePoint ou S3 connecté à HocNota par un administrateur. Un nœud HNS peut y prendre son fichier source (§12.3). |
+| **Lancement** | Une exécution du pipeline : un message de chat, un document analysé, une extraction. |
 
 Comment HocNota exécute un paquet :
 
-- à chaque message du chat, **si et seulement si** un rédacteur a joint un **nouveau**
-  fichier correspondant à une entrée, les étapes s'exécutent ; sinon rien ne tourne ;
+- les étapes ne s'exécutent que lorsqu'un **nouveau** fichier source arrive, de l'une
+  de ces façons ; sinon rien ne tourne et les outils lisent les données en vigueur :
+  - **pièce jointe** : à un message du chat, un rédacteur joint un fichier qui
+    correspond à une entrée (`accept`, `filename_pattern`) ;
+  - **fichier d'un dossier externe** : le nœud HNS est configuré avec un fichier d'un
+    dossier externe. À **chaque lancement** du pipeline (chat, analyse de document,
+    extraction), HocNota relit ce fichier et calcule son empreinte **SHA-256** : les
+    étapes ne s'exécutent que si elle diffère de celle de la vérification
+    précédente, ou si une nouvelle version du paquet a été importée depuis ;
+  - **import manuel** depuis le panneau du nœud ;
 - les étapes tournent dans un bac à sable dédié (1,5 Gio, 120 s au total) ;
 - chaque **appel d'outil** est un **nouveau processus** Python dans le bac à sable
   (≈ 0,1 à 0,5 s de surcoût), qui reçoit l'archive et les artefacts à lire ;
@@ -96,7 +107,7 @@ Comment HocNota exécute un paquet :
 
 ```bash
 python3.12 -m venv .venv && source .venv/bin/activate
-pip install "hocnota-scripts @ git+https://github.com/hocnota/Framework-HNS@v0.3.0"
+pip install "hocnota-scripts @ git+https://github.com/hocnota/Framework-HNS@v0.3.1"
 hocnota-scripts --version
 hocnota-scripts init catalogue-produits     # nom : minuscules, chiffres, tirets
 cd catalogue-produits
@@ -132,7 +143,11 @@ tout `src/` est embarqué. Déclarez dans `modules` ceux qui contiennent des
 Répondre par écrit (dans le README du projet) à ces questions avant d'écrire du code :
 
 1. **Source** : quel fichier, quelle forme (feuilles, plages, formules), quel nom
-   (→ `filename_pattern`), quelle fréquence de mise à jour, qui le fournit (→ rédacteurs) ?
+   (→ `filename_pattern`), quelle fréquence de mise à jour, et **comment il arrive** :
+   joint au chat par quelques personnes (→ rédacteurs), ou tenu à jour dans un dossier
+   partagé SharePoint / S3 (→ fichier de dossier externe, §12.3) ? Dans le second cas,
+   l'import se relance de lui-même quand le fichier change, dans tous les pipelines
+   où le nœud est placé, y compris d'analyse de documents.
 2. **Données** : quel schéma SQLite minimal permet de répondre à toutes les questions ?
    Tables normalisées, clés, **index** sur les colonnes de recherche. Ne recopiez
    pas le tableur : modélisez ce qu'il calcule.
@@ -191,8 +206,15 @@ Règles vérifiées par `validate` (et à nouveau par HocNota à l'import) :
 | Chaque artefact | produit par une étape **ou** fourni en seed |
 
 `filename_pattern` est appliqué aux fichiers **joints au chat** (pour ne pas importer
-un fichier sans rapport). Il ne l'est pas aux imports explicites depuis le panneau du
-nœud, où seule l'extension compte.
+un fichier sans rapport). Il ne l'est pas aux fichiers choisis explicitement — import
+depuis le panneau du nœud, fichier d'un dossier externe —, où seule l'extension
+compte : le fichier va à la **première entrée** qui accepte son extension, les autres
+entrées valent `None`. `accept` détermine aussi les fichiers proposés dans le dossier
+externe.
+
+Un paquet destiné à être alimenté par un dossier externe doit donc fonctionner avec
+**un seul fichier** : une seule entrée, ou des entrées aux extensions distinctes dont
+aucune n'est indispensable aux autres.
 
 ---
 
@@ -231,7 +253,7 @@ Contrat :
 | Sorties | Écrire chaque artefact listé dans `outputs` à `ctx.output_path(nom)`. Une sortie manquante fait échouer l'import. |
 | Retour | `dict` JSON (≤ 64 Kio, valeurs simples de préférence) ou `None`. |
 | Enchaînement | Les étapes s'exécutent dans l'ordre des modules puis du fichier ; une étape lit la sortie d'une précédente avec `ctx.artifact_path(nom)` ou `ctx.sqlite(nom)`. |
-| Erreurs | Lever `ValueError("message clair pour un humain")` : l'import échoue, **les données précédentes restent en vigueur**, le message est montré à l'agent et dans l'historique du nœud. |
+| Erreurs | Lever `ValueError("message clair pour un humain")` : l'import échoue, **les données précédentes restent en vigueur**, et le job de l'utilisateur s'arrête avec ce message (§7.1). |
 | Journal | `print()` ou `ctx.log()` : visible dans la trace (« Journal du script »), jamais dans le résultat. |
 | Ressources | 1,5 Gio de mémoire, 120 s, fichiers écrits ≤ 128 Mio, artefacts ≤ 64 Mio au total. |
 
@@ -246,7 +268,11 @@ Bonnes pratiques :
   montants en `REAL` arrondis comme le fichier source (ou en centimes `INTEGER`).
   **Gardez la base petite** (élaguez le passé si inutile) : elle est envoyée au bac à
   sable à **chaque** appel d'outil.
-- Déterminisme : aucune dépendance à l'heure courante sauf pour une métadonnée.
+- **Déterminisme** : le résultat ne dépend que du fichier, jamais de l'heure courante
+  (sauf pour une métadonnée). Un fichier de dossier externe n'est réimporté que si son
+  contenu change : un filtre « à partir d'aujourd'hui » appliqué à l'import resterait
+  figé à la date de ce dernier. Ce qui dépend de la date du jour se calcule dans les
+  outils.
 
 ---
 
@@ -308,9 +334,9 @@ Conception :
 
 ### 7.1 Faire échouer une étape avec un message clair
 
-Une étape qui lève une exception **arrête le job** de l'utilisateur (le tour de chat,
-dont l'import est la première étape) : l'exception est le canal d'erreur du paquet, et
-son message est ce que l'utilisateur lira.
+Une étape qui lève une exception **arrête le job** de l'utilisateur (le tour de chat
+ou l'analyse du document, dont l'import est la première étape) : l'exception est le
+canal d'erreur du paquet, et son message est ce que l'utilisateur lira.
 
 ```python
 @step(inputs=["catalogue"], outputs=["produits"])
@@ -328,6 +354,11 @@ def importer(ctx: Context, catalogue):
 - Dans le pipeline, la sortie **« erreur »** du nœud HNS permet de remplacer ce message
   par celui d'un nœud « Message d'erreur », puis d'aboutir à la « Sortie erreur ».
   Sans liaison, le job échoue avec le message du script.
+- **Fichier d'un dossier externe** : le même message s'affiche à **chaque** lancement
+  du pipeline tant que le fichier n'a pas été corrigé dans le dossier (le script n'est
+  pas relancé sur un contenu déjà en échec). Dites donc **où** corriger : onglet,
+  ligne, colonne, valeur attendue — c'est la personne qui tient le fichier à jour qui
+  doit pouvoir agir.
 - Un **outil** qui lève une exception ne fait pas échouer le job : l'erreur revient
   à l'agent, qui l'explique à l'utilisateur.
 
@@ -424,7 +455,8 @@ les embarque dans `vendor/` et refuse une archive > 32 Mo. Le cache
    réimporter le fichier source » ;
 3. le résultat de `hocnota-scripts test` ;
 4. les étapes HocNota du §12 qui restent à faire, adaptées au paquet (nom de l'entrée,
-   extension, motif de nom de fichier, outils, rédacteurs pressentis) ;
+   extension, motif de nom de fichier, outils, **alimentation** : rédacteurs pressentis
+   ou dossier externe et fichier à choisir) ;
 5. 3 à 5 questions de recette à poser dans le chat avec la réponse attendue.
 
 ---
@@ -462,7 +494,7 @@ Dans **Manager → Designer**, créer ou ouvrir un pipeline de chat et poser :
 |---|---|
 | **Entrée chat** (Chat) | — |
 | **Document support** (Entrée / Sortie) | Nombre maximal de fichiers suffisant (une conversation cumule ses pièces jointes). |
-| **Script** (Analyse IA) | Paquet ; outils à masquer éventuellement ; **Droits d'écriture** (équipes / personnes). |
+| **HNS** (Analyse IA) | Paquet ; outils à masquer éventuellement ; **Droits d'écriture** (équipes / personnes). |
 | **Agent IA** (Analyse IA) | Mode **Chat** ; un agent dont le modèle **gère les appels d'outils** ; « Utiliser les documents supports » inutile pour le fichier importé. |
 | **Sortie chat** (Chat) | — |
 
@@ -470,14 +502,34 @@ Liens :
 
 ```
 Document support ──► Entrée chat (patte « support »)
-Document support ──► Script (entrée « Documents supports », à gauche)
-Script (sortie « MCP », en haut) ──► Agent IA (patte « MCP »)
+Document support ──► HNS (entrée « Documents supports », à gauche)
+HNS (sortie « MCP », en haut) ──► Agent IA (patte « MCP »)
 Entrée chat ──► Agent IA ──(patte « réponse »)──► Sortie chat
 ```
 
 **Enregistrer**. Les droits d'écriture se choisissent parmi les membres des équipes
 auxquelles le pipeline est affecté : affecter le pipeline à ses équipes d'abord
 (liste des pipelines → **Équipes**).
+
+**Variante : fichier d'un dossier externe.** Quand le fichier source est tenu à jour
+dans un dossier partagé, le nœud HNS le lit lui-même ; la liaison au Document support
+devient facultative (utile seulement si des rédacteurs joignent aussi des fichiers).
+
+1. Un administrateur déclare le dossier : **Administration → Connexions externes →
+   Dossiers externes** (SharePoint ou S3).
+2. Dans le panneau du nœud HNS, section **Fichier source (dossier externe)** : choisir
+   le dossier, puis le fichier (seuls ceux dont l'extension figure dans `accept` sont
+   proposés). **Enregistrer** le pipeline.
+3. **Vérifier maintenant** importe le fichier tout de suite ; sinon, le premier
+   lancement le fait.
+
+Ce fichier est relu à chaque lancement et réimporté quand son contenu change (§1). Les
+droits d'écriture ne s'y appliquent pas : il a été choisi par qui peut modifier le
+pipeline, il est mis à jour par qui peut écrire dans le dossier. La même variante vaut
+pour un **pipeline d'analyse de documents** ou d'**extraction** : le nœud HNS s'y
+relie de la même façon à la patte « MCP » d'un agent, et ses données suivent le
+fichier du dossier. Si le panneau du nœud ne propose pas cette section, la version de
+HocNota utilisée ne la prend pas encore en charge.
 
 **Variante : message d'erreur personnalisé.** Si l'import échoue, le job s'arrête avec
 le message du script. Pour le remplacer par le vôtre, ajoutez :
@@ -501,6 +553,7 @@ Dans le panneau du nœud HNS, section **Données** :
 
 - **Importer un fichier maintenant…** avec le fichier source réel → une version 1
   « en vigueur » apparaît, avec les métadonnées renvoyées par l'étape ;
+- ou, avec un fichier de dossier externe, **Vérifier maintenant** ;
 - sinon, les outils utilisent le seed (« Aucun import : les outils lisent les données
   initiales »).
 
@@ -526,10 +579,16 @@ contrôle rapide.
   prochain message, la nouvelle version vaut pour **tout le monde**, l'agent le
   confirme. Un fichier déjà importé (même contenu) ne l'est jamais deux fois.
 - Ou un gestionnaire utilise **Importer un fichier maintenant…** dans le nœud.
+- **Dossier externe** : modifier le fichier dans le dossier suffit. Le lancement suivant
+  le réimporte ; un fichier réenregistré sans changement de contenu ne l'est pas. Si le
+  contenu redevient celui d'une version encore conservée, cette version est remise en
+  vigueur sans réexécuter l'import. Un fichier illisible (dossier injoignable, fichier
+  déplacé) laisse les données en vigueur, et l'agent en est prévenu.
 - **Revenir en arrière** : panneau du nœud → historique → **Rendre courante**.
-  HocNota garde les 5 dernières versions de données.
-- Un import en échec ne change rien aux données en vigueur ; le message d'erreur est
-  dans « Derniers imports » et l'agent prévient l'utilisateur.
+  HocNota garde les 5 dernières versions de données. Avec un dossier externe, le
+  retour en arrière tient jusqu'à la prochaine modification du fichier.
+- Un import en échec ne change rien aux données en vigueur ; le job s'arrête avec le
+  message du script (§7.1), aussi visible dans « Derniers imports ».
 
 ### Nouvelle version du code
 
@@ -537,13 +596,14 @@ contrôle rapide.
 |---|---|---|---|
 | Correctif d'un outil, nouvelle formulation | Z+1 (1.0.1) | inchangé | conservées |
 | Nouvel outil, nouveau paramètre optionnel | Y+1 (1.1.0) | inchangé | conservées |
-| Structure de la base modifiée | Y+1 ou X+1 | **+1** | **ignorées** (retour au seed) : réimporter le fichier source |
+| Structure de la base modifiée | Y+1 ou X+1 | **+1** | **ignorées** (retour au seed) : réimporter le fichier source (automatique avec un dossier externe) |
 | Nouvelle entrée, outil supprimé, paramètre obligatoire changé | X+1 (2.0.0) | selon le cas | selon le cas |
 
 Puis : `build` → import (§12.1). **La nouvelle version est en service dès l'import** :
 aucune validation ne la précède, `hocnota-scripts test` doit donc être vert avant. Si
 `schema_version` a changé, les données existantes sont ignorées immédiatement :
-réimporter aussitôt le fichier source.
+réimporter aussitôt le fichier source. Un nœud alimenté par un dossier externe le fait
+seul : toute nouvelle version du paquet réimporte son fichier au lancement suivant.
 
 **Retour arrière du code** : supprimer la version fautive dans la fiche du paquet
 (Manager → Paquets HNS → Ouvrir → Versions) ; la version précédente reprend la
@@ -561,6 +621,8 @@ main.
 | Import refusé (409) | Version déjà importée | Incrémenter `version`. |
 | Nœud « non approuvé » | Première approbation pas encore donnée | Approbation (§12.2). |
 | Le fichier joint n'est pas importé | Mauvaise extension ou `filename_pattern` ; nœud non relié au Document support ; fichier identique déjà importé ; auteur non rédacteur (l'agent le dit) | Vérifier le câblage, le nom du fichier, les droits d'écriture, « Derniers imports ». |
+| Le fichier du dossier externe n'est pas réimporté | Contenu identique (seule l'empreinte compte) ; fichier déplacé, renommé ou hors du dossier ; extension absente de `accept` ; > 48 Mo | Trace du job (« Fichier source inchangé » / « illisible »), « Derniers imports » (📁), **Vérifier maintenant**. |
+| Chaque job échoue avec le même message | Le fichier du dossier externe fait échouer l'import | Corriger le fichier dans le dossier : le lancement suivant le réimporte. |
 | `délai d'exécution dépassé` | Étape > `timeout_s` ou outil > 15 s | Optimiser (openpyxl `read_only`, index SQLite), augmenter `timeout_s` dans les limites. |
 | `artefact trop volumineux` / `sorties trop volumineuses` | Base > 64 Mio | Élaguer, normaliser, `VACUUM`. |
 | `bac à sable occupé` | Appels concurrents nombreux | Réessai automatique par l'agent ; réduire le nombre d'appels par réponse. |
@@ -593,6 +655,7 @@ main.
 | Lanceur | protocole 1 : `launcher.py step` / `launcher.py tool <nom>`, requête JSON sur stdin, résultat dans `output/result.json` |
 | Artefacts en entrée d'outil | ouverts en lecture seule (`mode=ro&immutable=1`) |
 | Limites voie « imports » | 120 s, 1,5 Gio, charge utile 96 Mio, sorties 64 Mio |
+| Fichier source | ≤ 48 Mo pour un import depuis le panneau ou un dossier externe |
 | Limites voie « outils » | 60 s par outil, 512 Mio, charge utile 24 Mio (archive sans seed + artefacts lus) |
 | Compatibilité | SDK 0.x ↔ HocNota avec `app/script_packages/` (format 1) |
 

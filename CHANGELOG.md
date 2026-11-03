@@ -12,6 +12,20 @@ Politique de version :
 Compatibilité : toutes les versions 0.x produisent le format `hocnota-package/1`
 (lanceur protocole 1), accepté par HocNota depuis l'introduction des paquets HNS.
 
+## 0.3.1 — 2026-11-03
+
+Documentation et gabarit de projet seulement : aucun changement de code ni de format.
+
+- **Fichier d'un dossier externe** : un nœud HNS peut prendre son fichier source dans
+  un dossier SharePoint ou S3 connecté à HocNota. Le fichier est relu à chaque
+  lancement du pipeline (chat, analyse de document, extraction) et réimporté quand son
+  empreinte SHA-256 change, ou quand une nouvelle version du paquet est importée. Le
+  guide décrit ce que cela implique pour un paquet : un seul fichier reçu
+  (`filename_pattern` ignoré), import qui ne dépend que du fichier, message d'erreur
+  répété à chaque lancement tant que le fichier n'est pas corrigé.
+- Guide : corrections — une étape en échec arrête le job (§6, §13) ; le nœud s'appelle
+  « HNS » dans l'éditeur (§12.3).
+
 ## 0.3.0 — 2026-11-02
 
 - **Retiré** : `@check`, `Reject`, la commande `check`, les cas `document` / `verdict` du

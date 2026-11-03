@@ -39,6 +39,10 @@ https://github.com/hocnota/Framework-HNS/blob/v{{sdk_version}}/docs/guide-projet
    `schema_version` de l'artefact si la structure des données change.
 10. Les valeurs attendues du jeu de référence viennent de la source de vérité
     (le fichier source), jamais du code testé.
+11. L'import ne dépend que du fichier, jamais de la date du jour : alimenté par un
+    dossier externe, il n'est relancé que quand le contenu du fichier change. Il doit
+    fonctionner avec un seul fichier (seule l'entrée acceptant son extension est
+    fournie, `filename_pattern` ne s'applique qu'aux pièces jointes du chat).
 
 ## Commandes
 
@@ -58,8 +62,9 @@ hocnota-scripts inspect dist/<archive>.hnpkg
 - `validate` OK, `run-step` OK sur le fichier source réel, `test` 100 % vert ;
 - `version` incrémentée (et `schema_version` si besoin), `build` sans erreur ;
 - fiche de livraison remise : archive, changements, résultat des tests, étapes
-  HocNota restantes (import, approbation à la première livraison, câblage du nœud HNS, droits d'écriture,
-  chargement des données, recette), questions de recette avec réponses attendues.
+  HocNota restantes (import, approbation à la première livraison, câblage du nœud HNS,
+  alimentation — droits d'écriture ou fichier d'un dossier externe —, chargement des
+  données, recette), questions de recette avec réponses attendues.
 
 L'import dans HocNota et la première approbation du paquet sont faits par des
 humains : ne pas chercher à les automatiser. Une mise à jour d'un paquet approuvé est

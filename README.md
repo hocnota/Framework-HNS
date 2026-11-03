@@ -3,21 +3,24 @@
 **Framework HNS** (HocNota Scripts) : création de **paquets HNS** (`.hnpkg`, format
 `hocnota-package/1`). Un paquet contient :
 
-- des **étapes d'import** (`@step`) qui transforment un fichier fourni par
-  l'utilisateur (ex. un classeur Excel joint à un chat) en **artefacts**
-  (ex. une base SQLite) ;
+- des **étapes d'import** (`@step`) qui transforment un fichier source
+  (ex. un classeur Excel joint à un chat, ou tenu à jour dans un dossier SharePoint
+  ou S3) en **artefacts** (ex. une base SQLite) ;
 - des **outils** (`@tool`) typés, offerts à un agent HocNota, qui lisent ces
   artefacts ;
 - des **consignes** (`instructions.md`) ajoutées au prompt de l'agent.
 
-Dans HocNota, le paquet importé devient un nœud **HNS** de pipeline : relié au
-flux des documents supports et à la patte MCP d'un agent. Tout s'exécute dans le
+Dans HocNota, le paquet importé devient un nœud **HNS** de pipeline : relié à la
+patte MCP d'un agent, et alimenté soit par le flux des documents supports (fichier
+joint au chat), soit par un fichier choisi dans un **dossier externe**. Tout s'exécute dans le
 bac à sable de HocNota (Python 3.12, sans réseau, lecture seule).
 
-![Fonctionnement d'un paquet HNS : le développeur construit et livre le paquet ; dans un chat, un fichier joint est transformé par les étapes d'import en données partagées, et l'agent appelle les outils du paquet, qui lisent ces données en lecture seule](docs/images/fonctionnement.svg)
+![Fonctionnement d'un paquet HNS : le développeur construit et livre le paquet ; un nouveau fichier, joint au chat ou modifié dans un dossier externe, est transformé par les étapes d'import en données partagées, et l'agent appelle les outils du paquet, qui lisent ces données en lecture seule](docs/images/fonctionnement.svg)
 
-En bref : les **étapes** ne s'exécutent que lorsqu'un nouveau fichier est joint et
-produisent des données partagées par tous les utilisateurs du pipeline ; les
+En bref : les **étapes** ne s'exécutent que lorsqu'un nouveau fichier arrive — joint
+au chat, ou modifié dans le dossier externe du nœud (HocNota relit ce fichier à chaque
+lancement du pipeline et compare son empreinte SHA-256) — et produisent des données
+partagées par tous les utilisateurs du pipeline ; les
 **outils** sont appelés par l'agent à chaque question et ne font que lire ces
 données. Si une étape échoue, le job s'arrête avec le message du script
 (une exception suffit : `raise ValueError("message clair")`).
@@ -32,7 +35,7 @@ données. Si une étape échoue, le job s'arrête avec le message du script
 
 ```bash
 python3.12 -m venv .venv && source .venv/bin/activate
-pip install "hocnota-scripts @ git+https://github.com/hocnota/Framework-HNS@v0.3.0"
+pip install "hocnota-scripts @ git+https://github.com/hocnota/Framework-HNS@v0.3.1"
 hocnota-scripts init mon-paquet && cd mon-paquet
 pip install -r requirements-dev.txt
 ```
@@ -47,7 +50,8 @@ collez-lui ce message dans un dossier vide, avec le fichier source à importer.
 
 ```text
 Crée un paquet HNS pour le fichier <chemin du fichier source>.
-1. Installe le framework : pip install "hocnota-scripts @ git+https://github.com/hocnota/Framework-HNS@v0.3.0"
+Dans HocNota, ce fichier sera <joint au chat par des rédacteurs | tenu à jour dans un dossier externe SharePoint ou S3>.
+1. Installe le framework : pip install "hocnota-scripts @ git+https://github.com/hocnota/Framework-HNS@v0.3.1"
 2. Lance `hocnota-scripts init <nom-du-paquet>`, puis ouvre le projet créé.
 3. Lis AGENTS.md et le guide docs/guide-projet.md qu'il référence, et suis-les :
    conception, étape d'import, outils, jeu de référence, `validate`, `test`, `build`.
