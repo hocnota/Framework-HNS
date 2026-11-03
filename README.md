@@ -10,9 +10,17 @@
   artefacts ;
 - des **consignes** (`instructions.md`) ajoutées au prompt de l'agent.
 
-Dans HocNota, le paquet importé devient un nœud **Script** de pipeline : relié au
+Dans HocNota, le paquet importé devient un nœud **HNS** de pipeline : relié au
 flux des documents supports et à la patte MCP d'un agent. Tout s'exécute dans le
 bac à sable de HocNota (Python 3.12, sans réseau, lecture seule).
+
+![Fonctionnement d'un paquet HNS : le développeur construit et livre le paquet ; dans un chat, un fichier joint est transformé par les étapes d'import en données partagées, et l'agent appelle les outils du paquet, qui lisent ces données en lecture seule](docs/images/fonctionnement.svg)
+
+En bref : les **étapes** ne s'exécutent que lorsqu'un nouveau fichier est joint et
+produisent des données partagées par tous les utilisateurs du pipeline ; les
+**outils** sont appelés par l'agent à chaque question et ne font que lire ces
+données. Si une étape échoue, le job s'arrête avec le message du script
+(une exception suffit : `raise ValueError("message clair")`).
 
 **Documentation**
 

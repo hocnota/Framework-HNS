@@ -1,0 +1,117 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1040 690" width="1040" height="690" role="img" aria-labelledby="t d" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">
+  <title id="t">Fonctionnement d'un paquet HNS</title>
+  <desc id="d">Le développeur construit un paquet .hnpkg avec le Framework HNS, l'importe dans HocNota où un administrateur l'approuve. Dans un chat, un fichier joint est transformé par les étapes d'import en données partagées ; à chaque question, l'agent appelle les outils du paquet, qui lisent ces données en lecture seule. Si une étape échoue, le job s'arrête avec le message du script.</desc>
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0 0 10 5 0 10z" fill="#57606a"/></marker>
+    <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0 0 10 5 0 10z" fill="#cf222e"/></marker>
+    <marker id="ag" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0 0 10 5 0 10z" fill="#1a7f37"/></marker>
+  </defs>
+
+  <rect x="1" y="1" width="1038" height="688" rx="14" fill="#ffffff" stroke="#d0d7de" stroke-width="2"/>
+  <text x="520" y="40" text-anchor="middle" font-size="22" font-weight="700" fill="#1f2328">Fonctionnement d'un paquet HNS</text>
+
+  <!-- 1 · Concevoir et livrer -->
+  <text x="30" y="80" font-size="15" font-weight="700" fill="#9a6700">1 · Concevoir et livrer — poste du développeur</text>
+  <g font-size="13" fill="#1f2328" text-anchor="middle">
+    <rect x="30" y="94" width="215" height="76" rx="10" fill="#fff8c5" stroke="#9a6700" stroke-width="1.5"/>
+    <text x="137" y="120" font-weight="700" font-size="14">Projet Python</text>
+    <text x="137" y="140">hocnota.toml · @step · @tool</text>
+    <text x="137" y="158">instructions.md · seed</text>
+
+    <rect x="300" y="94" width="190" height="76" rx="10" fill="#fff8c5" stroke="#9a6700" stroke-width="1.5"/>
+    <text x="395" y="120" font-weight="700" font-size="14">Framework HNS</text>
+    <text x="395" y="140">validate · test</text>
+    <text x="395" y="158">build</text>
+
+    <rect x="545" y="94" width="170" height="76" rx="10" fill="#fff8c5" stroke="#9a6700" stroke-width="1.5"/>
+    <text x="630" y="120" font-weight="700" font-size="14">Paquet .hnpkg</text>
+    <text x="630" y="140">archive versionnée</text>
+    <text x="630" y="158">hocnota-package/1</text>
+
+    <rect x="770" y="94" width="240" height="76" rx="10" fill="#fff8c5" stroke="#9a6700" stroke-width="1.5"/>
+    <text x="890" y="120" font-weight="700" font-size="14">Import dans HocNota</text>
+    <text x="890" y="140">Manager › Paquets HNS</text>
+    <text x="890" y="158">approbation par un administrateur</text>
+  </g>
+  <g stroke="#57606a" stroke-width="2" fill="none" marker-end="url(#a)">
+    <path d="M247 132H296"/><path d="M492 132H541"/><path d="M717 132H766"/>
+  </g>
+
+  <!-- 2 · Dans HocNota -->
+  <rect x="15" y="200" width="1010" height="440" rx="12" fill="#f6f8fa" stroke="#8c959f" stroke-width="1.5" stroke-dasharray="6 5"/>
+  <text x="30" y="230" font-size="15" font-weight="700" fill="#0969da">2 · Dans HocNota — un pipeline de chat avec un nœud HNS</text>
+
+  <!-- Rangée A : nouveau fichier -->
+  <text x="30" y="262" font-size="13" font-weight="700" fill="#1f2328">A · Quand un rédacteur joint un nouveau fichier</text>
+  <text x="400" y="262" font-size="12" fill="#57606a">(sinon rien ne s'exécute : les outils lisent les données en vigueur)</text>
+
+  <g font-size="13" fill="#1f2328" text-anchor="middle">
+    <rect x="30" y="278" width="200" height="72" rx="10" fill="#ffffff" stroke="#8c959f" stroke-width="1.5"/>
+    <text x="130" y="305" font-weight="700" font-size="14">Fichier joint</text>
+    <text x="130" y="326">classeur Excel, CSV, PDF…</text>
+
+    <rect x="290" y="278" width="270" height="72" rx="10" fill="#f1e8ff" stroke="#8250df" stroke-width="2"/>
+    <text x="425" y="305" font-weight="700" font-size="14">Étapes d'import · @step</text>
+    <text x="425" y="326">bac à sable : sans réseau, 120 s max</text>
+
+    <rect x="640" y="278" width="350" height="72" rx="10" fill="#dafbe1" stroke="#1a7f37" stroke-width="2"/>
+    <text x="815" y="305" font-weight="700" font-size="14">Données partagées</text>
+    <text x="815" y="326">base SQLite · version N « en vigueur »</text>
+  </g>
+  <g stroke="#57606a" stroke-width="2" fill="none" marker-end="url(#a)"><path d="M232 314H286"/></g>
+  <g stroke="#1a7f37" stroke-width="2" fill="none" marker-end="url(#ag)"><path d="M562 314H636"/></g>
+  <text x="599" y="304" text-anchor="middle" font-size="11" fill="#1a7f37">nouvelle</text>
+  <text x="599" y="334" text-anchor="middle" font-size="11" fill="#1a7f37">version</text>
+
+  <!-- Échec -->
+  <path d="M425 352V388" stroke="#cf222e" stroke-width="2" stroke-dasharray="5 4" fill="none" marker-end="url(#ar)"/>
+  <text x="437" y="376" font-size="12" fill="#cf222e">si le script échoue</text>
+  <rect x="290" y="392" width="270" height="62" rx="10" fill="#ffebe9" stroke="#cf222e" stroke-width="1.5"/>
+  <g font-size="13" fill="#1f2328" text-anchor="middle">
+    <text x="425" y="416" font-weight="700" font-size="14">Sortie « erreur » du nœud</text>
+    <text x="425" y="437">le job s'arrête avec le message du script</text>
+  </g>
+
+  <!-- Rangée B : question -->
+  <text x="30" y="489" font-size="13" font-weight="700" fill="#1f2328">B · À chaque question de l'utilisateur</text>
+
+  <g font-size="13" fill="#1f2328" text-anchor="middle">
+    <rect x="30" y="505" width="190" height="72" rx="10" fill="#ffffff" stroke="#8c959f" stroke-width="1.5"/>
+    <text x="125" y="532" font-weight="700" font-size="14">Question</text>
+    <text x="125" y="553">message dans le chat</text>
+
+    <rect x="290" y="505" width="240" height="72" rx="10" fill="#ddf4ff" stroke="#0969da" stroke-width="2"/>
+    <text x="410" y="532" font-weight="700" font-size="14">Agent IA</text>
+    <text x="410" y="553">choisit un outil et ses arguments</text>
+
+    <rect x="640" y="505" width="350" height="72" rx="10" fill="#f1e8ff" stroke="#8250df" stroke-width="2"/>
+    <text x="815" y="532" font-weight="700" font-size="14">Outil · @tool</text>
+    <text x="815" y="553">bac à sable : un processus par appel</text>
+
+    <rect x="290" y="602" width="240" height="30" rx="8" fill="#ffffff" stroke="#8c959f" stroke-width="1.5"/>
+    <text x="410" y="622">Réponse chiffrée, justifiée</text>
+  </g>
+  <g stroke="#57606a" stroke-width="2" fill="none" marker-end="url(#a)">
+    <path d="M222 541H286"/><path d="M410 579V598"/>
+    <path d="M532 528H636"/><path d="M636 560H532"/>
+  </g>
+  <text x="584" y="520" text-anchor="middle" font-size="11" fill="#57606a">appel</text>
+  <text x="584" y="577" text-anchor="middle" font-size="11" fill="#57606a">JSON</text>
+
+  <!-- Les outils lisent les données -->
+  <path d="M815 352V501" stroke="#1a7f37" stroke-width="2" fill="none" marker-end="url(#ag)" transform="translate(0 0)"/>
+  <path d="M815 501V352" stroke="none" fill="none"/>
+  <text x="827" y="432" font-size="12" fill="#1a7f37">lecture seule</text>
+  <text x="827" y="448" font-size="12" fill="#1a7f37">(jamais modifiées)</text>
+
+  <!-- Consignes -->
+  <rect x="30" y="602" width="215" height="30" rx="8" fill="#ffffff" stroke="#57606a" stroke-width="1.2" stroke-dasharray="4 3"/>
+  <text x="137" y="622" text-anchor="middle" font-size="12" fill="#1f2328">+ consignes et état des données</text>
+  <path d="M247 617H286L300 580" stroke="#57606a" stroke-width="1.5" stroke-dasharray="4 3" fill="none" marker-end="url(#a)"/>
+
+  <!-- Légende -->
+  <g font-size="12" fill="#1f2328">
+    <rect x="30" y="660" width="14" height="14" rx="3" fill="#f1e8ff" stroke="#8250df" stroke-width="1.5"/>
+    <text x="52" y="672">code du paquet, exécuté dans le bac à sable de HocNota (Python 3.12, sans réseau, système de fichiers en lecture seule)</text>
+  </g>
+</svg>
