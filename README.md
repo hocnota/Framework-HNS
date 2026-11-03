@@ -40,6 +40,23 @@ pip install -r requirements-dev.txt
 Le projet créé contient un `AGENTS.md` qui donne à une IA de code
 les règles du format et le lien vers le guide de la version utilisée.
 
+## Pour une IA de code
+
+Le guide est écrit pour être suivi par une IA de code (Claude Code, Codex, Cursor…) :
+collez-lui ce message dans un dossier vide, avec le fichier source à importer.
+
+```text
+Crée un paquet HNS pour le fichier <chemin du fichier source>.
+1. Installe le framework : pip install "hocnota-scripts @ git+https://github.com/hocnota/Framework-HNS@v0.3.0"
+2. Lance `hocnota-scripts init <nom-du-paquet>`, puis ouvre le projet créé.
+3. Lis AGENTS.md et le guide docs/guide-projet.md qu'il référence, et suis-les :
+   conception, étape d'import, outils, jeu de référence, `validate`, `test`, `build`.
+Ne fais rien dans HocNota : l'import de l'archive et son approbation restent humains.
+```
+
+L'`init` crée un `AGENTS.md` : à partir de là, l'IA retrouve les règles du format
+dans le projet lui-même, à la version du framework installée.
+
 ## Cycle de travail
 
 ```bash
